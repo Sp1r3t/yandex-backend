@@ -1,12 +1,15 @@
 #pragma once
+
 #include <functional>
 #include <optional>
+#include <stdexcept>
 
 #include "clock.h"
 #include "gascooker.h"
 
 /*
 Класс "Сосиска".
+
 Позволяет себя обжаривать на газовой плите
 */
 class Sausage : public std::enable_shared_from_this<Sausage> {
@@ -51,6 +54,7 @@ public:
         if (frying_end_time_) {
             throw std::logic_error("Frying has already stopped");
         }
+
         frying_end_time_ = Clock::now();
         // Освобождаем горелку
         gas_cooker_lock_.Unlock();
@@ -90,34 +94,50 @@ public:
     // Начинает приготовление хлеба на газовой плите. Как только горелка будет занята, вызовет
     // handler
     void StartBake(GasCooker& cooker, Handler handler) {
-        // Реализуйте этот метод аналогично Sausage::StartFry
-        assert(!"Bread::StartBake is not implemented");
-        throw std::logic_error("Bread::StartBake is not implemented");
+        if (baking_start_time_) {
+            throw std::logic_error("Baking already started");
+        }
+
+        baking_start_time_ = Clock::now();
+        gas_cooker_lock_ = GasCookerLock{cooker.shared_from_this()};
+
+        cooker.UseBurner([self = shared_from_this(), handler = std::move(handler)] {
+            self->baking_start_time_ = Clock::now();
+            handler();
+        });
     }
 
     // Останавливает приготовление хлеба и освобождает горелку.
     void StopBaking() {
-        // Реализуйте этот метод по аналогии с Sausage::StopFry
-        assert(!"Bread::StopBaking is not implemented");
-        throw std::logic_error("Bread::StopBaking is not implemented");
+        if (!baking_start_time_) {
+            throw std::logic_error("Baking has not started");
+        }
+        if (baking_end_time_) {
+            throw std::logic_error("Baking has already stopped");
+        }
+
+        baking_end_time_ = Clock::now();
+        gas_cooker_lock_.Unlock();
     }
 
     // Информирует, испечён ли хлеб
     bool IsCooked() const noexcept {
-        // Реализуйте этот метод аналогично Sausage::IsCooked
-        assert(!"Bread::IsCooked is not implemented");
-        return false;
+        return baking_start_time_.has_value() && baking_end_time_.has_value();
     }
 
     // Возвращает продолжительность выпекания хлеба. Бросает исключение, если хлеб не был испечён
     Clock::duration GetBakingDuration() const {
-        // Реализуйте этот метод аналогично Sausage::GetCookDuration
-        assert(!"Bread::GetBakingDuration is not implemented");
-        throw std::logic_error("Bread::GetBakingDuration is not implemented");
+        if (!baking_start_time_ || !baking_end_time_) {
+            throw std::logic_error("Bread has not been baked");
+        }
+        return *baking_end_time_ - *baking_start_time_;
     }
 
 private:
     int id_;
+    GasCookerLock gas_cooker_lock_;
+    std::optional<Clock::time_point> baking_start_time_;
+    std::optional<Clock::time_point> baking_end_time_;
 };
 
 // Склад ингредиентов (возвращает ингредиенты с уникальным id)
