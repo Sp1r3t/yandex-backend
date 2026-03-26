@@ -1,13 +1,79 @@
 #include "json_loader.h"
 
+#include <boost/json.hpp>
+
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+
 namespace json_loader {
+namespace json = boost::json;
+using namespace std::literals;
+
+namespace {
+
+model::Road ParseRoad(const json::object& obj) {
+    const model::Point start{
+        static_cast<model::Coord>(obj.at("x0").as_int64()),
+        static_cast<model::Coord>(obj.at("y0").as_int64())};
+
+    if (obj.if_contains("x1")) {
+        return model::Road(model::Road::HORIZONTAL, start,
+                           static_cast<model::Coord>(obj.at("x1").as_int64()));
+    }
+    return model::Road(model::Road::VERTICAL, start,
+                       static_cast<model::Coord>(obj.at("y1").as_int64()));
+}
+
+model::Building ParseBuilding(const json::object& obj) {
+    return model::Building({
+        {static_cast<model::Coord>(obj.at("x").as_int64()), static_cast<model::Coord>(obj.at("y").as_int64())},
+        {static_cast<model::Dimension>(obj.at("w").as_int64()), static_cast<model::Dimension>(obj.at("h").as_int64())}
+    });
+}
+
+model::Office ParseOffice(const json::object& obj) {
+    return model::Office(
+        model::Office::Id(std::string(obj.at("id").as_string().c_str())),
+        {static_cast<model::Coord>(obj.at("x").as_int64()), static_cast<model::Coord>(obj.at("y").as_int64())},
+        {static_cast<model::Dimension>(obj.at("offsetX").as_int64()), static_cast<model::Dimension>(obj.at("offsetY").as_int64())});
+}
+
+model::Map ParseMap(const json::object& obj) {
+    model::Map map(model::Map::Id(std::string(obj.at("id").as_string().c_str())),
+                   std::string(obj.at("name").as_string().c_str()));
+
+    for (const auto& road : obj.at("roads").as_array()) {
+        map.AddRoad(ParseRoad(road.as_object()));
+    }
+    for (const auto& building : obj.at("buildings").as_array()) {
+        map.AddBuilding(ParseBuilding(building.as_object()));
+    }
+    for (const auto& office : obj.at("offices").as_array()) {
+        map.AddOffice(ParseOffice(office.as_object()));
+    }
+    return map;
+}
+
+}  // namespace
 
 model::Game LoadGame(const std::filesystem::path& json_path) {
-    // Загрузить содержимое файла json_path, например, в виде строки
-    // Распарсить строку как JSON, используя boost::json::parse
-    // Загрузить модель игры из файла
-    model::Game game;
+    std::ifstream input(json_path);
+    if (!input.is_open()) {
+        throw std::runtime_error("Failed to open config file: "s + json_path.string());
+    }
 
+    std::ostringstream strm;
+    strm << input.rdbuf();
+
+    json::value doc = json::parse(strm.str());
+    const json::object& root = doc.as_object();
+
+    model::Game game;
+    for (const auto& map_value : root.at("maps").as_array()) {
+        game.AddMap(ParseMap(map_value.as_object()));
+    }
     return game;
 }
 
