@@ -35,8 +35,10 @@ StringResponse MakeStringResponse(http::status status, std::string_view body, un
 
 StringResponse HandleRequest(StringRequest&& req) {
     if (req.method() != http::verb::get) {
-        return MakeStringResponse(http::status::method_not_allowed, "",
-                                  req.version(), req.keep_alive());
+        return MakeStringResponse(http::status::method_not_allowed,
+                                  "Invalid method",
+                                  req.version(),
+                                  req.keep_alive());
     }
 
     std::string name = std::string(req.target());
