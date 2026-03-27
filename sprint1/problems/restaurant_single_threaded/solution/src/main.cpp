@@ -23,7 +23,7 @@ public:
         return cutlet_roasted_;
     }
     void SetCutletRoasted() {
-        if (IsCutletRoasted()) {  // Котлету можно жарить только один раз
+        if (IsCutletRoasted()) {
             throw std::logic_error("Cutlet has been roasted already"s);
         }
         cutlet_roasted_ = true;
@@ -32,12 +32,11 @@ public:
     [[nodiscard]] bool HasOnion() const {
         return has_onion_;
     }
-    // Добавляем лук
     void AddOnion() {
-        if (IsPacked()) {  // Если гамбургер упакован, класть лук в него нельзя
+        if (IsPacked()) {
             throw std::logic_error("Hamburger has been packed already"s);
         }
-        AssureCutletRoasted();  // Лук разрешается класть лишь после прожаривания котлеты
+        AssureCutletRoasted();
         has_onion_ = true;
     }
 
@@ -45,7 +44,7 @@ public:
         return is_packed_;
     }
     void Pack() {
-        AssureCutletRoasted();  // Нельзя упаковывать гамбургер, если котлета не прожарена
+        AssureCutletRoasted();
         is_packed_ = true;
     }
 
