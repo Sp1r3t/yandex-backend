@@ -6,19 +6,13 @@ namespace model {
 using namespace std::literals;
 
 void Map::AddOffice(Office office) {
-    if (warehouse_id_to_index_.contains(office.GetId())) {
+    if (warehouse_id_to_index_.find(office.GetId()) != warehouse_id_to_index_.end()) {
         throw std::invalid_argument("Duplicate warehouse");
     }
 
     const size_t index = offices_.size();
     Office& o = offices_.emplace_back(std::move(office));
-    try {
-        warehouse_id_to_index_.emplace(o.GetId(), index);
-    } catch (...) {
-        // Удаляем офис из вектора, если не удалось вставить в unordered_map
-        offices_.pop_back();
-        throw;
-    }
+    warehouse_id_to_index_.emplace(o.GetId(), index);
 }
 
 void Game::AddMap(Map map) {
