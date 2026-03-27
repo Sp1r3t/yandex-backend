@@ -1,30 +1,27 @@
 #pragma once
 
-#include "http_server.h"
+#include <boost/beast/http.hpp>
+#include <boost/json.hpp>
+#include <string>
+#include <string_view>
+
 #include "model.h"
 
-#include <boost/json.hpp>
-
 namespace http_handler {
-namespace beast = boost::beast;
-namespace http = beast::http;
+
+namespace http = boost::beast::http;
 namespace json = boost::json;
 
 class RequestHandler {
 public:
     explicit RequestHandler(const model::Game& game)
-        : game_{game} {
+        : game_(game) {
     }
-
-    RequestHandler(const RequestHandler&) = delete;
-    RequestHandler& operator=(const RequestHandler&) = delete;
 
     template <typename Body, typename Allocator, typename Send>
     void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) const {
-        using StringResponse = http::response<http::string_body>;
-
-        const auto make_json_response = [&req](http::status status, std::string body) {
-            StringResponse res{status, req.version()};
+        const auto make_json_response = [&](http::status status, std::string body) {
+            http::response<http::string_body> res{status, req.version()};
             res.set(http::field::content_type, "application/json");
             res.body() = std::move(body);
             res.content_length(res.body().size());
@@ -40,12 +37,15 @@ public:
         };
 
         if (req.method() != http::verb::get) {
-            return send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+            send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+            return;
         }
 
         const std::string target = std::string(req.target());
-        if (!target.starts_with("/api/")) {
-            return send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+
+        if (target.rfind("/api/", 0) != 0) {
+            send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+            return;
         }
 
         if (target == "/api/v1/maps") {
@@ -56,22 +56,29 @@ public:
                 item["name"] = map.GetName();
                 maps.emplace_back(std::move(item));
             }
-            return send(make_json_response(http::status::ok, json::serialize(maps)));
+            send(make_json_response(http::status::ok, json::serialize(maps)));
+            return;
         }
 
         constexpr std::string_view maps_prefix = "/api/v1/maps/";
-        if (target.starts_with(maps_prefix)) {
+        if (target.rfind(std::string(maps_prefix), 0) == 0) {
             const std::string map_id = target.substr(maps_prefix.size());
+
             if (map_id.empty() || map_id.find('/') != std::string::npos) {
-                return send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+                send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+                return;
             }
+
             if (const auto* map = game_.FindMap(model::Map::Id(map_id))) {
-                return send(make_json_response(http::status::ok, json::serialize(MapToJson(*map))));
+                send(make_json_response(http::status::ok, json::serialize(MapToJson(*map))));
+                return;
             }
-            return send(make_error(http::status::not_found, "mapNotFound", "Map not found"));
+
+            send(make_error(http::status::not_found, "mapNotFound", "Map not found"));
+            return;
         }
 
-        return send(make_error(http::status::bad_request, "badRequest", "Bad request"));
+        send(make_error(http::status::bad_request, "badRequest", "Bad request"));
     }
 
 private:
