@@ -67,8 +67,7 @@ int main(int argc, const char* argv[]) {
                                            std::forward<decltype(send)>(send));
                                });
 
-	std::cout << "Hello! Server is starting at port " << port << std::endl; 
-
+	std::cout << "Server has started..." << std::endl;
         RunWorkers(num_threads, [&ioc] {
             ioc.run();
         });
