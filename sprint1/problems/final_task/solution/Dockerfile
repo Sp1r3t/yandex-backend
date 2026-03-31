@@ -9,28 +9,25 @@ RUN apt-get update && \
     && pip3 install --no-cache-dir "conan==1.*" \
     && rm -rf /var/lib/apt/lists/*
 
-COPY conanfile.txt CMakeLists.txt ./
-COPY *.cpp *.h ./
-COPY config.json ./
+COPY . .
 
-RUN mkdir build && cd build && \
+RUN mkdir -p build && \
+    cd build && \
     conan install .. --build=missing && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cmake --build . --config Release -j$(nproc)
+    cmake --build . --config Release -j"$(nproc)"
 
-FROM ubuntu:22.04 AS run
+FROM ubuntu:22.04
 
 WORKDIR /app
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libstdc++6 && \
-    rm -rf /var/lib/apt/lists/* && \
-    groupadd -r www && useradd -r -g www www
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/build/bin/game_server /app/game_server
-COPY --from=build /app/config.json /app/config.json
+COPY --from=build /app/data/config.json /app/data/config.json
 
 EXPOSE 8080
-USER www
 
-ENTRYPOINT ["/app/game_server", "/app/config.json"]
+ENTRYPOINT ["/app/game_server", "/app/data/config.json"]

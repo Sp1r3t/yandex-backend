@@ -13,15 +13,15 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 add_executable(game_server
-    main.cpp
-    http_server.cpp
-    boost_json.cpp
-    model.cpp
-    json_loader.cpp
-    request_handler.cpp
+    src/main.cpp
+    src/http_server.cpp
+    src/boost_json.cpp
+    src/model.cpp
+    src/json_loader.cpp
+    src/request_handler.cpp
 )
 
-target_include_directories(game_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(game_server PRIVATE src)
 
 target_link_libraries(game_server PRIVATE
     ${CONAN_LIBS}

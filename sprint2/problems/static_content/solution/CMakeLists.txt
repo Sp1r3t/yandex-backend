@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 
+project(game_server_project CXX)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -8,7 +10,7 @@ conan_basic_setup()
 
 find_package(Boost 1.78.0 REQUIRED)
 if(Boost_FOUND)
-  include_directories(${Boost_INCLUDE_DIRS})
+    include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
