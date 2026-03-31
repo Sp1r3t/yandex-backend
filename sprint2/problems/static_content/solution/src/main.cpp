@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -42,34 +43,41 @@ void RunWorkers(unsigned n, const Fn& fn) {
 
 int main(int argc, const char* argv[]) {
     if (argc != 3) {
-    std::cerr << "Usage: game_server <config-file> <static-dir>"sv << std::endl;
-    return EXIT_FAILURE;
-}
+        std::cerr << "Usage: game_server <config-file> <static-dir>"sv << std::endl;
+        return EXIT_FAILURE;
+    }
 
-try {
-    const auto game = json_loader::LoadGame(argv[1]);
-    const std::filesystem::path static_root = argv[2];
+    try {
+        const auto game = json_loader::LoadGame(argv[1]);
+        const std::filesystem::path static_root = argv[2];
 
-    const unsigned num_threads = std::max(1u, std::thread::hardware_concurrency());
-    net::io_context ioc(num_threads);
+        const unsigned num_threads = std::max(1u, std::thread::hardware_concurrency());
+        net::io_context ioc(num_threads);
 
-    net::signal_set signals(ioc, SIGINT, SIGTERM);
-    signals.async_wait([&ioc](const boost::system::error_code&, int) {
-        ioc.stop();
-    });
+        net::signal_set signals(ioc, SIGINT, SIGTERM);
+        signals.async_wait([&ioc](const boost::system::error_code&, int) {
+            ioc.stop();
+        });
 
-    const auto address = net::ip::make_address("0.0.0.0");
-    constexpr unsigned short port = 8080;
+        const auto address = net::ip::make_address("0.0.0.0");
+        constexpr unsigned short port = 8080;
 
-    http_handler::RequestHandler handler{game, static_root};
-    http_server::ServeHttp(ioc, {address, port},
-                           [&handler](auto&& req, auto&& send) {
-                               handler(std::forward<decltype(req)>(req),
-                                       std::forward<decltype(send)>(send));
-                           });
+        http_handler::RequestHandler handler{game, static_root};
+        http_server::ServeHttp(ioc, {address, port},
+                               [&handler](auto&& req, auto&& send) {
+                                   handler(std::forward<decltype(req)>(req),
+                                           std::forward<decltype(send)>(send));
+                               });
 
-    std::cout << "Server has started..." << std::endl;
-    RunWorkers(num_threads, [&ioc] {
-        ioc.run();
-    });
+        std::cout << "Server has started..." << std::endl;
+
+        RunWorkers(num_threads, [&ioc] {
+            ioc.run();
+        });
+    } catch (const std::exception& ex) {
+        std::cerr << ex.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
