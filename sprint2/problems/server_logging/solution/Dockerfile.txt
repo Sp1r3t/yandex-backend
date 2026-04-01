@@ -1,0 +1,21 @@
+FROM gcc:12
+
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install conan
+
+WORKDIR /app
+
+COPY . .
+
+RUN conan profile new default --detect --force
+RUN conan install . --build=missing
+
+RUN cmake -B build -S .
+RUN cmake --build build
+
+CMD ["./build/game_server", "config.json", "static"]
