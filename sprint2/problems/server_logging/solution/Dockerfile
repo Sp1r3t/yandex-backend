@@ -13,8 +13,9 @@ COPY . .
 
 RUN conan profile new default --detect --force
 RUN conan profile update settings.compiler.libcxx=libstdc++11 default
-RUN conan install . --build=missing
 
+RUN mkdir -p build
+RUN conan install . -if build --build=missing
 RUN cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build build -j
 
