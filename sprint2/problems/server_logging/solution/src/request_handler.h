@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/json.hpp>
 #include <chrono>
