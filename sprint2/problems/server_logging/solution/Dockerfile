@@ -19,4 +19,4 @@ RUN conan install . -if build --build=missing
 RUN cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build build -j
 
-CMD ["./build/bin/game_server"]
+CMD ["./build/bin/game_server", "data/config.json", "static"]
