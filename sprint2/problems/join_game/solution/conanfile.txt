@@ -1,0 +1,12 @@
+[requires]
+boost/1.86.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+boost/*:header_only=False
+
+[layout]
+cmake_layout
