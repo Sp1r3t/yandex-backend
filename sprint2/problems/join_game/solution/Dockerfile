@@ -20,4 +20,4 @@ RUN conan install . --build=missing -s build_type=Release
 RUN cmake --preset conan-release
 RUN cmake --build --preset conan-release -j
 
-ENTRYPOINT ["/app/build/Release/game_server"]
+ENTRYPOINT ["/app/build/Release/game_server", "/app/data/config.json", "/app/static"]
