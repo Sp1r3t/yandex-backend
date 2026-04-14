@@ -16,9 +16,9 @@ WORKDIR /app
 COPY . .
 
 RUN conan profile detect --force
-RUN conan install . --output-folder=build --build=missing -s build_type=Release
-RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
-RUN cmake --build build --config Release -j
+RUN conan install . --build=missing -s build_type=Release
+RUN cmake --preset conan-release
+RUN cmake --build --preset conan-release -j
 
 FROM debian:bookworm-slim
 
@@ -28,6 +28,6 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY --from=builder /app/build/game_server /app/game_server
+COPY --from=builder /app/build/Release/game_server /app/game_server
 
 ENTRYPOINT ["/app/game_server"]
