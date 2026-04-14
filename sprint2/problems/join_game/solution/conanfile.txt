@@ -7,6 +7,7 @@ CMakeToolchain
 
 [options]
 boost/*:header_only=False
+boost/*:shared=False
 
 [layout]
 cmake_layout
