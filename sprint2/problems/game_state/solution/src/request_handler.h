@@ -38,10 +38,10 @@ public:
                                        std::optional<std::string_view> allow = std::nullopt) {
             if (req.method() == http::verb::head) {
                 http::response<http::empty_body> res{status, req.version()};
-                res.set(http::field::content_type, content_type);
+                res.set(http::field::content_type, std::string(content_type));
                 res.set(http::field::cache_control, "no-cache");
                 if (allow) {
-                    res.set(http::field::allow, *allow);
+                    res.set(http::field::allow, std::string(*allow));
                 }
                 res.content_length(body.size());
                 res.keep_alive(req.keep_alive());
@@ -50,10 +50,10 @@ public:
             }
 
             http::response<http::string_body> res{status, req.version()};
-            res.set(http::field::content_type, content_type);
+            res.set(http::field::content_type, std::string(content_type));
             res.set(http::field::cache_control, "no-cache");
             if (allow) {
-                res.set(http::field::allow, *allow);
+                res.set(http::field::allow, std::string(*allow));
             }
             res.body() = std::move(body);
             res.content_length(res.body().size());
@@ -94,7 +94,10 @@ public:
                 return;
             }
 
-            const auto token = ExtractBearerToken(auth_header->value());
+            const auto auth_value = auth_header->value();
+            const auto token = ExtractBearerToken(
+                std::string_view(auth_value.data(), auth_value.size())
+            );
             if (!token) {
                 send_error(http::status::unauthorized,
                            "invalidToken",
