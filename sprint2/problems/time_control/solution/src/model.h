@@ -180,10 +180,6 @@ public:
         return dog_speed_;
     }
 
-    void SetDogSpeed(double speed) noexcept {
-        dog_speed_ = speed;
-    }
-
     void AddRoad(const Road& road) {
         roads_.emplace_back(road);
     }

@@ -14,16 +14,16 @@ using namespace std::literals;
 namespace {
 
 double ParseDouble(const json::value& value) {
-    if (const auto* double_value = value.if_double()) {
-        return *double_value;
+    if (value.is_double()) {
+        return value.as_double();
     }
-    if (const auto* int_value = value.if_int64()) {
-        return static_cast<double>(*int_value);
+    if (value.is_int64()) {
+        return static_cast<double>(value.as_int64());
     }
-    if (const auto* uint_value = value.if_uint64()) {
-        return static_cast<double>(*uint_value);
+    if (value.is_uint64()) {
+        return static_cast<double>(value.as_uint64());
     }
-    throw std::runtime_error("Numeric value is expected");
+    throw std::invalid_argument("Expected number");
 }
 
 model::Road ParseRoad(const json::object& obj) {
@@ -54,10 +54,7 @@ model::Office ParseOffice(const json::object& obj) {
 }
 
 model::Map ParseMap(const json::object& obj, double default_dog_speed) {
-    double dog_speed = default_dog_speed;
-    if (const auto* dog_speed_value = obj.if_contains("dogSpeed")) {
-        dog_speed = ParseDouble(*dog_speed_value);
-    }
+    const double dog_speed = obj.if_contains("dogSpeed") ? ParseDouble(obj.at("dogSpeed")) : default_dog_speed;
 
     model::Map map(model::Map::Id(std::string(obj.at("id").as_string().c_str())),
                    std::string(obj.at("name").as_string().c_str()),
@@ -89,10 +86,9 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
     json::value doc = json::parse(strm.str());
     const json::object& root = doc.as_object();
 
-    double default_dog_speed = 1.0;
-    if (const auto* default_speed_value = root.if_contains("defaultDogSpeed")) {
-        default_dog_speed = ParseDouble(*default_speed_value);
-    }
+    const double default_dog_speed = root.if_contains("defaultDogSpeed")
+        ? ParseDouble(root.at("defaultDogSpeed"))
+        : 1.0;
 
     model::Game game;
     for (const auto& map_value : root.at("maps").as_array()) {

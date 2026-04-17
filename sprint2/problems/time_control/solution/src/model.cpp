@@ -50,22 +50,56 @@ struct Interval {
     double max = 0.0;
 };
 
+void AddRoadProjectionByY(const Road& road, double y, std::vector<Interval>& intervals) {
+    const auto start = road.GetStart();
+    const auto end = road.GetEnd();
+
+    if (road.IsHorizontal()) {
+        const double center_y = static_cast<double>(start.y);
+        if (std::abs(y - center_y) > kRoadHalfWidth + kEpsilon) {
+            return;
+        }
+        intervals.push_back({
+            static_cast<double>(std::min(start.x, end.x)) - kRoadHalfWidth,
+            static_cast<double>(std::max(start.x, end.x)) + kRoadHalfWidth});
+    } else {
+        const double min_y = static_cast<double>(std::min(start.y, end.y)) - kRoadHalfWidth;
+        const double max_y = static_cast<double>(std::max(start.y, end.y)) + kRoadHalfWidth;
+        if (y < min_y - kEpsilon || y > max_y + kEpsilon) {
+            return;
+        }
+        const double center_x = static_cast<double>(start.x);
+        intervals.push_back({center_x - kRoadHalfWidth, center_x + kRoadHalfWidth});
+    }
+}
+
+void AddRoadProjectionByX(const Road& road, double x, std::vector<Interval>& intervals) {
+    const auto start = road.GetStart();
+    const auto end = road.GetEnd();
+
+    if (road.IsVertical()) {
+        const double center_x = static_cast<double>(start.x);
+        if (std::abs(x - center_x) > kRoadHalfWidth + kEpsilon) {
+            return;
+        }
+        intervals.push_back({
+            static_cast<double>(std::min(start.y, end.y)) - kRoadHalfWidth,
+            static_cast<double>(std::max(start.y, end.y)) + kRoadHalfWidth});
+    } else {
+        const double min_x = static_cast<double>(std::min(start.x, end.x)) - kRoadHalfWidth;
+        const double max_x = static_cast<double>(std::max(start.x, end.x)) + kRoadHalfWidth;
+        if (x < min_x - kEpsilon || x > max_x + kEpsilon) {
+            return;
+        }
+        const double center_y = static_cast<double>(start.y);
+        intervals.push_back({center_y - kRoadHalfWidth, center_y + kRoadHalfWidth});
+    }
+}
+
 std::vector<Interval> BuildHorizontalIntervals(const Map& map, double y) {
     std::vector<Interval> intervals;
     for (const auto& road : map.GetRoads()) {
-        if (!road.IsHorizontal()) {
-            continue;
-        }
-
-        const auto start = road.GetStart();
-        const auto end = road.GetEnd();
-        if (std::abs(y - static_cast<double>(start.y)) > kRoadHalfWidth + kEpsilon) {
-            continue;
-        }
-
-        const double min_x = static_cast<double>(std::min(start.x, end.x)) - kRoadHalfWidth;
-        const double max_x = static_cast<double>(std::max(start.x, end.x)) + kRoadHalfWidth;
-        intervals.push_back({min_x, max_x});
+        AddRoadProjectionByY(road, y, intervals);
     }
 
     std::sort(intervals.begin(), intervals.end(), [](const Interval& lhs, const Interval& rhs) {
@@ -89,19 +123,7 @@ std::vector<Interval> BuildHorizontalIntervals(const Map& map, double y) {
 std::vector<Interval> BuildVerticalIntervals(const Map& map, double x) {
     std::vector<Interval> intervals;
     for (const auto& road : map.GetRoads()) {
-        if (!road.IsVertical()) {
-            continue;
-        }
-
-        const auto start = road.GetStart();
-        const auto end = road.GetEnd();
-        if (std::abs(x - static_cast<double>(start.x)) > kRoadHalfWidth + kEpsilon) {
-            continue;
-        }
-
-        const double min_y = static_cast<double>(std::min(start.y, end.y)) - kRoadHalfWidth;
-        const double max_y = static_cast<double>(std::max(start.y, end.y)) + kRoadHalfWidth;
-        intervals.push_back({min_y, max_y});
+        AddRoadProjectionByX(road, x, intervals);
     }
 
     std::sort(intervals.begin(), intervals.end(), [](const Interval& lhs, const Interval& rhs) {
@@ -132,12 +154,8 @@ const Interval* FindContainingInterval(const std::vector<Interval>& intervals, d
 }
 
 void MoveDogOnMap(const Map& map, Dog& dog, std::int64_t time_delta_ms) {
-    if (time_delta_ms <= 0) {
-        return;
-    }
-
     const Speed2D speed = dog.GetSpeed();
-    if (std::abs(speed.vx) < kEpsilon && std::abs(speed.vy) < kEpsilon) {
+    if (std::abs(speed.vx) <= kEpsilon && std::abs(speed.vy) <= kEpsilon) {
         return;
     }
 
@@ -146,34 +164,56 @@ void MoveDogOnMap(const Map& map, Dog& dog, std::int64_t time_delta_ms) {
 
     if (std::abs(speed.vx) > kEpsilon) {
         const auto intervals = BuildHorizontalIntervals(map, position.y);
-        const Interval* interval = FindContainingInterval(intervals, position.x);
-        if (!interval) {
+        const Interval* current = FindContainingInterval(intervals, position.x);
+        if (!current) {
             dog.SetSpeed({0.0, 0.0});
             return;
         }
 
         const double target_x = position.x + speed.vx * dt;
-        const double clamped_x = std::clamp(target_x, interval->min, interval->max);
-        dog.SetPosition({clamped_x, position.y});
-        if (std::abs(clamped_x - target_x) > kEpsilon) {
-            dog.SetSpeed({0.0, 0.0});
+        if (speed.vx > 0.0) {
+            if (target_x <= current->max + kEpsilon) {
+                position.x = target_x;
+            } else {
+                position.x = current->max;
+                dog.SetSpeed({0.0, 0.0});
+            }
+        } else {
+            if (target_x >= current->min - kEpsilon) {
+                position.x = target_x;
+            } else {
+                position.x = current->min;
+                dog.SetSpeed({0.0, 0.0});
+            }
         }
+        dog.SetPosition(position);
         return;
     }
 
     const auto intervals = BuildVerticalIntervals(map, position.x);
-    const Interval* interval = FindContainingInterval(intervals, position.y);
-    if (!interval) {
+    const Interval* current = FindContainingInterval(intervals, position.y);
+    if (!current) {
         dog.SetSpeed({0.0, 0.0});
         return;
     }
 
     const double target_y = position.y + speed.vy * dt;
-    const double clamped_y = std::clamp(target_y, interval->min, interval->max);
-    dog.SetPosition({position.x, clamped_y});
-    if (std::abs(clamped_y - target_y) > kEpsilon) {
-        dog.SetSpeed({0.0, 0.0});
+    if (speed.vy > 0.0) {
+        if (target_y <= current->max + kEpsilon) {
+            position.y = target_y;
+        } else {
+            position.y = current->max;
+            dog.SetSpeed({0.0, 0.0});
+        }
+    } else {
+        if (target_y >= current->min - kEpsilon) {
+            position.y = target_y;
+        } else {
+            position.y = current->min;
+            dog.SetSpeed({0.0, 0.0});
+        }
     }
+    dog.SetPosition(position);
 }
 
 }  // namespace
@@ -293,8 +333,7 @@ std::optional<std::vector<Game::PlayerSnapshot>> Game::GetStateByToken(std::stri
                 player.GetId(),
                 dog.GetPosition(),
                 dog.GetSpeed(),
-                dog.GetDirection()
-            });
+                dog.GetDirection()});
         }
     }
 

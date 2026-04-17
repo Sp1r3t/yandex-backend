@@ -5,7 +5,6 @@
 #include <boost/json.hpp>
 #include <cctype>
 #include <chrono>
-#include <cstdint>
 #include <filesystem>
 #include <limits>
 #include <optional>
@@ -186,71 +185,6 @@ public:
             return;
         }
 
-        if (target == "/api/v1/game/player/action") {
-            if (req.method() != http::verb::post) {
-                send_error(http::status::method_not_allowed,
-                           "invalidMethod",
-                           "Invalid method",
-                           "POST");
-                return;
-            }
-
-            if (!IsApplicationJson(req)) {
-                send_error(http::status::bad_request,
-                           "invalidArgument",
-                           "Invalid content type");
-                return;
-            }
-
-            const auto auth_header = req.find(http::field::authorization);
-            if (auth_header == req.end()) {
-                send_error(http::status::unauthorized,
-                           "invalidToken",
-                           "Authorization header is required");
-                return;
-            }
-
-            const auto auth_value = auth_header->value();
-            const auto token = ExtractBearerToken(
-                std::string_view(auth_value.data(), auth_value.size())
-            );
-            if (!token) {
-                send_error(http::status::unauthorized,
-                           "invalidToken",
-                           "Authorization header is invalid");
-                return;
-            }
-
-            try {
-                const json::value parsed = json::parse(req.body());
-                const json::object& obj = parsed.as_object();
-                const auto* move_value = obj.if_contains("move");
-                if (!move_value || !move_value->is_string()) {
-                    throw std::invalid_argument("move field is required");
-                }
-
-                const auto move = ParseMoveCommand(move_value->as_string().c_str());
-                if (!move) {
-                    throw std::invalid_argument("invalid move");
-                }
-
-                if (!game_.SetPlayerAction(*token, *move)) {
-                    send_error(http::status::unauthorized,
-                               "unknownToken",
-                               "Player token has not been found");
-                    return;
-                }
-
-                send_json(http::status::ok, json::object{});
-                return;
-            } catch (const std::exception&) {
-                send_error(http::status::bad_request,
-                           "invalidArgument",
-                           "Failed to parse action");
-                return;
-            }
-        }
-
         if (target == "/api/v1/game/tick") {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
@@ -414,6 +348,25 @@ private:
         return value == "application/json";
     }
 
+    static std::optional<model::MoveCommand> ParseMoveCommand(std::string_view move) {
+        if (move == "L") {
+            return model::MoveCommand::LEFT;
+        }
+        if (move == "R") {
+            return model::MoveCommand::RIGHT;
+        }
+        if (move == "U") {
+            return model::MoveCommand::UP;
+        }
+        if (move == "D") {
+            return model::MoveCommand::DOWN;
+        }
+        if (move.empty()) {
+            return model::MoveCommand::STOP;
+        }
+        return std::nullopt;
+    }
+
     static std::optional<std::string> ExtractBearerToken(std::string_view auth_header) {
         static constexpr std::string_view kBearerPrefix = "Bearer ";
         if (auth_header.substr(0, kBearerPrefix.size()) != kBearerPrefix) {
@@ -442,25 +395,6 @@ private:
             case model::Direction::EAST:  return "R";
         }
         return "U";
-    }
-
-    static std::optional<model::MoveCommand> ParseMoveCommand(std::string_view move) noexcept {
-        if (move == "L") {
-            return model::MoveCommand::LEFT;
-        }
-        if (move == "R") {
-            return model::MoveCommand::RIGHT;
-        }
-        if (move == "U") {
-            return model::MoveCommand::UP;
-        }
-        if (move == "D") {
-            return model::MoveCommand::DOWN;
-        }
-        if (move.empty()) {
-            return model::MoveCommand::STOP;
-        }
-        return std::nullopt;
     }
 
     static json::object RoadToJson(const model::Road& road);
