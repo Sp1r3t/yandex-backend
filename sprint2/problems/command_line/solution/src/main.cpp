@@ -34,7 +34,6 @@ struct CommandLineArgs {
     bool randomize_spawn_points = false;
 };
 
-// Таймер, который периодически вызывает Tick у игры внутри strand
 class AutoTicker : public std::enable_shared_from_this<AutoTicker> {
 public:
     using Strand = net::strand<net::io_context::executor_type>;
@@ -77,7 +76,6 @@ private:
         try {
             game_->Tick(delta.count());
         } catch (...) {
-            // Ошибки внутри Tick не должны ронять цикл таймера
         }
 
         ScheduleNextTick();
@@ -112,7 +110,7 @@ std::optional<CommandLineArgs> ParseCommandLine(int argc,
         ("randomize-spawn-points",
          "spawn dogs at random positions");
 
-    // Скрытые позиционные аргументы для совместимости с тестами/старым запуском
+    // Скрытые позиционные аргументы для совместимости с тестами
     po::options_description hidden("Hidden options");
     hidden.add_options()
         ("config-file-pos", po::value<std::string>())
@@ -211,9 +209,9 @@ int main(int argc, const char* argv[]) {
         return EXIT_SUCCESS;
     }
 
-    server_logger::InitLogging();
-
     try {
+        server_logger::InitLogging();
+
         auto game = std::make_shared<model::Game>(json_loader::LoadGame(args->config_file));
         game->SetRandomizeSpawnPoints(args->randomize_spawn_points);
 
@@ -235,7 +233,6 @@ int main(int argc, const char* argv[]) {
             std::make_shared<AutoTicker>(api_strand, game, *args->tick_period)->Start();
         }
 
-        // manual_tick_enabled = true, если tick-period НЕ задан
         http_handler::RequestHandler handler{*game, static_root, !args->tick_period.has_value()};
         http_handler::LoggingRequestHandler logging_handler{handler};
 
@@ -250,7 +247,10 @@ int main(int argc, const char* argv[]) {
         server_logger::LogServerExit(EXIT_SUCCESS);
     } catch (const std::exception& ex) {
         const std::string message = ex.what();
-        server_logger::LogServerExit(EXIT_FAILURE, &message);
+        try {
+            server_logger::LogServerExit(EXIT_FAILURE, &message);
+        } catch (...) {
+        }
         return EXIT_FAILURE;
     }
 
