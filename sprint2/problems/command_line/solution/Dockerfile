@@ -6,7 +6,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install conan==1.52.0
+# Conan 1.x is required by this project (conanbuildinfo.cmake), but 1.52.0 is too old
+# for the current boost/1.78.0 recipe from Conan Center.
+RUN pip3 install "conan>=1.53,<2"
 
 WORKDIR /app
 COPY . .
