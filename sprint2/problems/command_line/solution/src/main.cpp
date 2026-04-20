@@ -11,6 +11,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <boost/asio/strand.hpp>
 #include <boost/program_options.hpp>
 
 #include "http_server.h"
@@ -22,6 +23,7 @@ using namespace std::literals;
 
 namespace net = boost::asio;
 namespace po = boost::program_options;
+namespace sys = boost::system;
 
 namespace {
 
@@ -32,40 +34,61 @@ struct CommandLineArgs {
     bool randomize_spawn_points = false;
 };
 
+// Таймер, периодически обновляющий игровое состояние внутри strand.
+// Между тиками измеряется реальное прошедшее время, а не номинальный период.
 class AutoTicker : public std::enable_shared_from_this<AutoTicker> {
 public:
-    AutoTicker(net::io_context& ioc,
+    using Strand = net::strand<net::io_context::executor_type>;
+
+    AutoTicker(Strand strand,
                std::shared_ptr<model::Game> game,
                std::chrono::milliseconds tick_period)
-        : timer_(ioc)
+        : strand_(strand)
+        , timer_(strand_)
         , game_(std::move(game))
         , tick_period_(tick_period) {
     }
 
     void Start() {
-        ScheduleNextTick();
+        last_tick_ = Clock::now();
+        net::dispatch(strand_, [self = shared_from_this()] {
+            self->ScheduleNextTick();
+        });
     }
 
 private:
+    using Clock = std::chrono::steady_clock;
+
     void ScheduleNextTick() {
         timer_.expires_after(tick_period_);
-        timer_.async_wait([self = shared_from_this()](const boost::system::error_code& ec) {
+        timer_.async_wait([self = shared_from_this()](const sys::error_code& ec) {
             self->OnTick(ec);
         });
     }
 
-    void OnTick(const boost::system::error_code& ec) {
+    void OnTick(const sys::error_code& ec) {
         if (ec) {
             return;
         }
 
-        game_->Tick(tick_period_.count());
+        const auto now = Clock::now();
+        const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick_);
+        last_tick_ = now;
+
+        try {
+            game_->Tick(delta.count());
+        } catch (...) {
+            // Ошибки обработчика не должны ломать цикл таймера.
+        }
+
         ScheduleNextTick();
     }
 
+    Strand strand_;
     net::steady_timer timer_;
     std::shared_ptr<model::Game> game_;
     std::chrono::milliseconds tick_period_;
+    Clock::time_point last_tick_;
 };
 
 po::options_description MakeCommandLineDescription() {
@@ -94,15 +117,12 @@ std::optional<CommandLineArgs> ParseCommandLine(int argc,
     help_requested = false;
 
     const auto desc = MakeCommandLineDescription();
-    po::positional_options_description positional;
-    positional.add("config-file", 1);
-    positional.add("www-root", 1);
 
     po::variables_map vm;
 
     try {
         auto parser = po::command_line_parser(argc, argv);
-        parser.options(desc).positional(positional);
+        parser.options(desc);
         po::store(parser.run(), vm);
         po::notify(vm);
     } catch (const po::error& ex) {
@@ -186,15 +206,18 @@ int main(int argc, const char* argv[]) {
         net::io_context ioc(num_threads);
 
         net::signal_set signals(ioc, SIGINT, SIGTERM);
-        signals.async_wait([&ioc](const boost::system::error_code&, int) {
+        signals.async_wait([&ioc](const sys::error_code&, int) {
             ioc.stop();
         });
+
+        // strand, в котором выполняются обращения к игровому состоянию из таймера.
+        auto api_strand = net::make_strand(ioc);
 
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr unsigned short port = 8080;
 
         if (args->tick_period) {
-            std::make_shared<AutoTicker>(ioc, game, *args->tick_period)->Start();
+            std::make_shared<AutoTicker>(api_strand, game, *args->tick_period)->Start();
         }
 
         http_handler::RequestHandler handler{*game, static_root, !args->tick_period.has_value()};

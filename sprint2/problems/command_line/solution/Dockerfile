@@ -22,4 +22,4 @@ RUN cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build build -j
 
 ENTRYPOINT ["./build/bin/game_server"]
-CMD ["data/config.json", "static"]
+CMD ["-c", "data/config.json", "-w", "static"]
