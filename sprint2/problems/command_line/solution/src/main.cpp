@@ -94,10 +94,16 @@ std::optional<CommandLineArgs> ParseCommandLine(int argc,
     help_requested = false;
 
     const auto desc = MakeCommandLineDescription();
+    po::positional_options_description positional;
+    positional.add("config-file", 1);
+    positional.add("www-root", 1);
+
     po::variables_map vm;
 
     try {
-        po::store(po::parse_command_line(argc, argv, desc), vm);
+        auto parser = po::command_line_parser(argc, argv);
+        parser.options(desc).positional(positional);
+        po::store(parser.run(), vm);
         po::notify(vm);
     } catch (const po::error& ex) {
         err << ex.what() << '\n' << desc << std::endl;
