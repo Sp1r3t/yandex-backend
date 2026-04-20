@@ -34,8 +34,7 @@ struct CommandLineArgs {
     bool randomize_spawn_points = false;
 };
 
-// Таймер, периодически обновляющий игровое состояние внутри strand.
-// Между тиками измеряется реальное прошедшее время, а не номинальный период.
+// Таймер, который периодически вызывает Tick у игры внутри strand
 class AutoTicker : public std::enable_shared_from_this<AutoTicker> {
 public:
     using Strand = net::strand<net::io_context::executor_type>;
@@ -43,7 +42,7 @@ public:
     AutoTicker(Strand strand,
                std::shared_ptr<model::Game> game,
                std::chrono::milliseconds tick_period)
-        : strand_(strand)
+        : strand_(std::move(strand))
         , timer_(strand_)
         , game_(std::move(game))
         , tick_period_(tick_period) {
@@ -78,7 +77,7 @@ private:
         try {
             game_->Tick(delta.count());
         } catch (...) {
-            // Ошибки обработчика не должны ломать цикл таймера.
+            // Ошибки внутри Tick не должны ронять цикл таймера
         }
 
         ScheduleNextTick();
@@ -91,9 +90,15 @@ private:
     Clock::time_point last_tick_;
 };
 
-po::options_description MakeCommandLineDescription() {
-    po::options_description desc("Allowed options");
-    desc.add_options()
+std::optional<CommandLineArgs> ParseCommandLine(int argc,
+                                                const char* argv[],
+                                                std::ostream& out,
+                                                std::ostream& err,
+                                                bool& help_requested) {
+    help_requested = false;
+
+    po::options_description visible("Allowed options");
+    visible.add_options()
         ("help,h", "produce help message")
         ("tick-period,t",
          po::value<int>()->value_name("milliseconds"),
@@ -106,49 +111,60 @@ po::options_description MakeCommandLineDescription() {
          "set static files root")
         ("randomize-spawn-points",
          "spawn dogs at random positions");
-    return desc;
-}
 
-std::optional<CommandLineArgs> ParseCommandLine(int argc,
-                                                const char* argv[],
-                                                std::ostream& out,
-                                                std::ostream& err,
-                                                bool& help_requested) {
-    help_requested = false;
+    // Скрытые позиционные аргументы для совместимости с тестами/старым запуском
+    po::options_description hidden("Hidden options");
+    hidden.add_options()
+        ("config-file-pos", po::value<std::string>())
+        ("www-root-pos", po::value<std::string>());
 
-    const auto desc = MakeCommandLineDescription();
+    po::options_description all("All options");
+    all.add(visible).add(hidden);
+
+    po::positional_options_description positional;
+    positional.add("config-file-pos", 1);
+    positional.add("www-root-pos", 1);
 
     po::variables_map vm;
-
     try {
-        auto parser = po::command_line_parser(argc, argv);
-        parser.options(desc);
-        po::store(parser.run(), vm);
+        po::store(
+            po::command_line_parser(argc, argv)
+                .options(all)
+                .positional(positional)
+                .run(),
+            vm);
         po::notify(vm);
     } catch (const po::error& ex) {
-        err << ex.what() << '\n' << desc << std::endl;
+        err << ex.what() << '\n' << visible << std::endl;
         return std::nullopt;
     }
 
     if (vm.count("help")) {
         help_requested = true;
-        out << desc << std::endl;
+        out << visible << std::endl;
         return CommandLineArgs{};
     }
 
-    if (!vm.count("config-file")) {
-        err << "Config file path is not specified" << '\n' << desc << std::endl;
-        return std::nullopt;
-    }
-
-    if (!vm.count("www-root")) {
-        err << "Static files root is not specified" << '\n' << desc << std::endl;
-        return std::nullopt;
-    }
-
     CommandLineArgs args;
-    args.config_file = vm["config-file"].as<std::string>();
-    args.www_root = vm["www-root"].as<std::string>();
+
+    if (vm.count("config-file")) {
+        args.config_file = vm["config-file"].as<std::string>();
+    } else if (vm.count("config-file-pos")) {
+        args.config_file = vm["config-file-pos"].as<std::string>();
+    } else {
+        err << "Config file path is not specified" << '\n' << visible << std::endl;
+        return std::nullopt;
+    }
+
+    if (vm.count("www-root")) {
+        args.www_root = vm["www-root"].as<std::string>();
+    } else if (vm.count("www-root-pos")) {
+        args.www_root = vm["www-root-pos"].as<std::string>();
+    } else {
+        err << "Static files root is not specified" << '\n' << visible << std::endl;
+        return std::nullopt;
+    }
+
     args.randomize_spawn_points = vm.count("randomize-spawn-points") != 0;
 
     if (vm.count("tick-period")) {
@@ -210,7 +226,6 @@ int main(int argc, const char* argv[]) {
             ioc.stop();
         });
 
-        // strand, в котором выполняются обращения к игровому состоянию из таймера.
         auto api_strand = net::make_strand(ioc);
 
         const auto address = net::ip::make_address("0.0.0.0");
@@ -220,6 +235,7 @@ int main(int argc, const char* argv[]) {
             std::make_shared<AutoTicker>(api_strand, game, *args->tick_period)->Start();
         }
 
+        // manual_tick_enabled = true, если tick-period НЕ задан
         http_handler::RequestHandler handler{*game, static_root, !args->tick_period.has_value()};
         http_handler::LoggingRequestHandler logging_handler{handler};
 
