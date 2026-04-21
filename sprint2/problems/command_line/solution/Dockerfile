@@ -6,8 +6,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Conan 1.x is required by this project (CMake uses conanbuildinfo.cmake).
-# 1.52.0 is too old for the current boost/1.78.0 recipe, so use a newer 1.x.
 RUN pip3 install conan==1.59.0
 
 WORKDIR /app
@@ -19,7 +17,7 @@ RUN conan profile update settings.compiler.libcxx=libstdc++11 default
 RUN mkdir -p build
 RUN conan install . -if build --build=missing -s build_type=Release -s compiler.libcxx=libstdc++11
 RUN cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-RUN cmake --build build -j
+RUN cmake --build build --verbose -j1
 
-ENTRYPOINT ["./build/bin/game_server"]
+ENTRYPOINT ["./build/game_server"]
 CMD ["-c", "data/config.json", "-w", "static"]
