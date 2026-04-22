@@ -29,8 +29,7 @@ RUN mkdir -p build \
 COPY . .
 
 RUN cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-
 RUN cmake --build build --verbose -j$(nproc --ignore=1)
 
 ENTRYPOINT ["/app/build/game_server"]
-CMD ["-c", "data/config.json", "-w", "static"]
+CMD ["-c", "/app/data/config.json", "-w", "/app/static"]
