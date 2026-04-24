@@ -7,22 +7,21 @@ namespace http_handler {
 
 namespace {
 
-// JSON field name constants
-constexpr std::string_view kFieldX0     = "x0";
-constexpr std::string_view kFieldY0     = "y0";
-constexpr std::string_view kFieldX1     = "x1";
-constexpr std::string_view kFieldY1     = "y1";
-constexpr std::string_view kFieldX      = "x";
-constexpr std::string_view kFieldY      = "y";
-constexpr std::string_view kFieldW      = "w";
-constexpr std::string_view kFieldH      = "h";
-constexpr std::string_view kFieldId     = "id";
-constexpr std::string_view kFieldName   = "name";
-constexpr std::string_view kFieldOffsetX = "offsetX";
-constexpr std::string_view kFieldOffsetY = "offsetY";
-constexpr std::string_view kFieldRoads     = "roads";
-constexpr std::string_view kFieldBuildings = "buildings";
-constexpr std::string_view kFieldOffices   = "offices";
+constexpr json::string_view kFieldX0      = "x0";
+constexpr json::string_view kFieldY0      = "y0";
+constexpr json::string_view kFieldX1      = "x1";
+constexpr json::string_view kFieldY1      = "y1";
+constexpr json::string_view kFieldX       = "x";
+constexpr json::string_view kFieldY       = "y";
+constexpr json::string_view kFieldW       = "w";
+constexpr json::string_view kFieldH       = "h";
+constexpr json::string_view kFieldId      = "id";
+constexpr json::string_view kFieldName    = "name";
+constexpr json::string_view kFieldOffsetX = "offsetX";
+constexpr json::string_view kFieldOffsetY = "offsetY";
+constexpr json::string_view kFieldRoads     = "roads";
+constexpr json::string_view kFieldBuildings = "buildings";
+constexpr json::string_view kFieldOffices   = "offices";
 
 }  // namespace
 
