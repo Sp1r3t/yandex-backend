@@ -18,6 +18,7 @@
 #include "json_loader.h"
 #include "logger.h"
 #include "request_handler.h"
+#include "ticker.h"
 
 using namespace std::literals;
 
@@ -32,60 +33,6 @@ struct CommandLineArgs {
     std::filesystem::path www_root;
     std::optional<std::chrono::milliseconds> tick_period;
     bool randomize_spawn_points = false;
-};
-
-class AutoTicker : public std::enable_shared_from_this<AutoTicker> {
-public:
-    using Strand = net::strand<net::io_context::executor_type>;
-
-    AutoTicker(Strand strand,
-               std::shared_ptr<model::Game> game,
-               std::chrono::milliseconds tick_period)
-        : strand_(std::move(strand))
-        , timer_(strand_)
-        , game_(std::move(game))
-        , tick_period_(tick_period) {
-    }
-
-    void Start() {
-        last_tick_ = Clock::now();
-        net::dispatch(strand_, [self = shared_from_this()] {
-            self->ScheduleNextTick();
-        });
-    }
-
-private:
-    using Clock = std::chrono::steady_clock;
-
-    void ScheduleNextTick() {
-        timer_.expires_after(tick_period_);
-        timer_.async_wait([self = shared_from_this()](const sys::error_code& ec) {
-            self->OnTick(ec);
-        });
-    }
-
-    void OnTick(const sys::error_code& ec) {
-        if (ec) {
-            return;
-        }
-
-        const auto now = Clock::now();
-        const auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick_);
-        last_tick_ = now;
-
-        try {
-            game_->Tick(delta.count());
-        } catch (...) {
-        }
-
-        ScheduleNextTick();
-    }
-
-    Strand strand_;
-    net::steady_timer timer_;
-    std::shared_ptr<model::Game> game_;
-    std::chrono::milliseconds tick_period_;
-    Clock::time_point last_tick_;
 };
 
 std::optional<CommandLineArgs> ParseCommandLine(int argc,
@@ -110,7 +57,6 @@ std::optional<CommandLineArgs> ParseCommandLine(int argc,
         ("randomize-spawn-points",
          "spawn dogs at random positions");
 
-    // Скрытые позиционные аргументы для совместимости с тестами
     po::options_description hidden("Hidden options");
     hidden.add_options()
         ("config-file-pos", po::value<std::string>())
@@ -230,7 +176,7 @@ int main(int argc, const char* argv[]) {
         constexpr unsigned short port = 8080;
 
         if (args->tick_period) {
-            std::make_shared<AutoTicker>(api_strand, game, *args->tick_period)->Start();
+            std::make_shared<ticker::AutoTicker>(api_strand, game, *args->tick_period)->Start();
         }
 
         http_handler::RequestHandler handler{*game, static_root, !args->tick_period.has_value()};

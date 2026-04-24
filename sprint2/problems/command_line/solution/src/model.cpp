@@ -82,6 +82,33 @@ struct Interval {
     double max = 0.0;
 };
 
+// Общая функция: собирает проекции всех дорог по заданной оси и сливает пересекающиеся отрезки.
+// AddProjectionFn должна иметь сигнатуру: void(const Road&, std::vector<Interval>&)
+template <typename AddProjectionFn>
+std::vector<Interval> BuildMergedIntervals(const Map& map, AddProjectionFn add_projection) {
+    std::vector<Interval> intervals;
+    for (const auto& road : map.GetRoads()) {
+        add_projection(road, intervals);
+    }
+
+    std::sort(intervals.begin(), intervals.end(), [](const Interval& lhs, const Interval& rhs) {
+        if (lhs.min != rhs.min) {
+            return lhs.min < rhs.min;
+        }
+        return lhs.max < rhs.max;
+    });
+
+    std::vector<Interval> merged;
+    for (const auto& interval : intervals) {
+        if (merged.empty() || interval.min > merged.back().max + kEpsilon) {
+            merged.push_back(interval);
+        } else {
+            merged.back().max = std::max(merged.back().max, interval.max);
+        }
+    }
+    return merged;
+}
+
 void AddRoadProjectionByY(const Road& road, double y, std::vector<Interval>& intervals) {
     const auto start = road.GetStart();
     const auto end = road.GetEnd();
@@ -129,51 +156,15 @@ void AddRoadProjectionByX(const Road& road, double x, std::vector<Interval>& int
 }
 
 std::vector<Interval> BuildHorizontalIntervals(const Map& map, double y) {
-    std::vector<Interval> intervals;
-    for (const auto& road : map.GetRoads()) {
+    return BuildMergedIntervals(map, [y](const Road& road, std::vector<Interval>& intervals) {
         AddRoadProjectionByY(road, y, intervals);
-    }
-
-    std::sort(intervals.begin(), intervals.end(), [](const Interval& lhs, const Interval& rhs) {
-        if (lhs.min != rhs.min) {
-            return lhs.min < rhs.min;
-        }
-        return lhs.max < rhs.max;
     });
-
-    std::vector<Interval> merged;
-    for (const auto& interval : intervals) {
-        if (merged.empty() || interval.min > merged.back().max + kEpsilon) {
-            merged.push_back(interval);
-        } else {
-            merged.back().max = std::max(merged.back().max, interval.max);
-        }
-    }
-    return merged;
 }
 
 std::vector<Interval> BuildVerticalIntervals(const Map& map, double x) {
-    std::vector<Interval> intervals;
-    for (const auto& road : map.GetRoads()) {
+    return BuildMergedIntervals(map, [x](const Road& road, std::vector<Interval>& intervals) {
         AddRoadProjectionByX(road, x, intervals);
-    }
-
-    std::sort(intervals.begin(), intervals.end(), [](const Interval& lhs, const Interval& rhs) {
-        if (lhs.min != rhs.min) {
-            return lhs.min < rhs.min;
-        }
-        return lhs.max < rhs.max;
     });
-
-    std::vector<Interval> merged;
-    for (const auto& interval : intervals) {
-        if (merged.empty() || interval.min > merged.back().max + kEpsilon) {
-            merged.push_back(interval);
-        } else {
-            merged.back().max = std::max(merged.back().max, interval.max);
-        }
-    }
-    return merged;
 }
 
 const Interval* FindContainingInterval(const std::vector<Interval>& intervals, double value) {

@@ -23,6 +23,18 @@ namespace http = boost::beast::http;
 namespace json = boost::json;
 using tcp = boost::asio::ip::tcp;
 
+// API endpoint constants
+struct ApiEndpoints {
+    static constexpr std::string_view kJoin         = "/api/v1/game/join";
+    static constexpr std::string_view kPlayers      = "/api/v1/game/players";
+    static constexpr std::string_view kPlayerAction = "/api/v1/game/player/action";
+    static constexpr std::string_view kTick         = "/api/v1/game/tick";
+    static constexpr std::string_view kState        = "/api/v1/game/state";
+    static constexpr std::string_view kMaps         = "/api/v1/maps";
+    static constexpr std::string_view kMapsPrefix   = "/api/v1/maps/";
+    static constexpr std::string_view kApiPrefix    = "/api/";
+};
+
 class RequestHandler {
 public:
     RequestHandler(const model::Game& game, std::filesystem::path static_root, bool manual_tick_enabled = true)
@@ -118,12 +130,12 @@ public:
         };
 
         const std::string target = std::string(req.target());
-        if (target.rfind("/api/", 0) != 0) {
+        if (target.rfind(std::string(ApiEndpoints::kApiPrefix), 0) != 0) {
             send(static_handler_.HandleRequest(req));
             return;
         }
 
-        if (target == "/api/v1/game/join") {
+        if (target == ApiEndpoints::kJoin) {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -173,7 +185,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/players") {
+        if (target == ApiEndpoints::kPlayers) {
             handle_authorized_get([&](std::string_view token) {
                 const auto player = game_.FindPlayerByToken(token);
                 if (!player) {
@@ -193,7 +205,7 @@ public:
             return;
         }
 
-        if (target == "/api/v1/game/player/action") {
+        if (target == ApiEndpoints::kPlayerAction) {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -258,7 +270,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/tick") {
+        if (target == ApiEndpoints::kTick) {
             if (!manual_tick_enabled_) {
                 send_invalid_endpoint();
                 return;
@@ -315,7 +327,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/state") {
+        if (target == ApiEndpoints::kState) {
             handle_authorized_get([&](std::string_view token) {
                 const auto snapshots = game_.GetStateByToken(token);
                 if (!snapshots) {
@@ -349,7 +361,7 @@ public:
             return;
         }
 
-        if (target == "/api/v1/maps") {
+        if (target == ApiEndpoints::kMaps) {
             if (req.method() != http::verb::get && req.method() != http::verb::head) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -369,8 +381,7 @@ public:
             return;
         }
 
-        constexpr std::string_view maps_prefix = "/api/v1/maps/";
-        if (target.rfind(std::string(maps_prefix), 0) == 0) {
+        if (target.rfind(std::string(ApiEndpoints::kMapsPrefix), 0) == 0) {
             if (req.method() != http::verb::get && req.method() != http::verb::head) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -379,7 +390,7 @@ public:
                 return;
             }
 
-            const std::string map_id = target.substr(maps_prefix.size());
+            const std::string map_id = target.substr(ApiEndpoints::kMapsPrefix.size());
 
             if (map_id.empty() || map_id.find('/') != std::string::npos) {
                 send_error(http::status::bad_request,
