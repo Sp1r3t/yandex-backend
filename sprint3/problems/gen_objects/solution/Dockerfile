@@ -19,6 +19,7 @@ COPY CMakeLists.txt /app/
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cmake --build .
+    cmake --build . && \
+    cp /app/build/game_server /app/game_server
 
-CMD ["/app/build/game_server", "/app/data/config.json", "/app/static"]
+CMD ["/app/game_server", "--config-file", "/app/data/config.json", "--www-root", "/app/static/"]
