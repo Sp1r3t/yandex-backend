@@ -302,7 +302,7 @@ void Game::SetLootGeneratorConfig(TimeInterval period, double probability,
                                    loot_gen::LootGenerator::RandomGenerator random_gen) {
     loot_period_ = period;
     loot_probability_ = probability;
-    loot_random_gen_ = random_gen ? std::move(random_gen) : loot_gen::LootGenerator::RandomGenerator{GameRandomGen};
+    loot_random_gen_ = std::move(random_gen);
 }
 
 void Game::AddMap(Map map) {
@@ -314,11 +314,11 @@ void Game::AddMap(Map map) {
             const auto& added_map = maps_.emplace_back(std::move(map));
             const Map::Id& map_id = added_map.GetId();
 
-            loot_gen::LootGenerator::RandomGenerator gen = loot_random_gen_;
-            if (!gen) {
-                gen = GameRandomGen;
+            if (loot_random_gen_) {
+                map_generators_.try_emplace(map_id, loot_period_, loot_probability_, loot_random_gen_);
+            } else {
+                map_generators_.try_emplace(map_id, loot_period_, loot_probability_);
             }
-            map_generators_.try_emplace(map_id, loot_period_, loot_probability_, gen);
             map_lost_objects_.try_emplace(map_id);
         } catch (...) {
             map_id_to_index_.erase(it);
