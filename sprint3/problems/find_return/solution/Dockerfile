@@ -12,10 +12,9 @@ RUN mkdir /app/build && cd /app/build && \
     conan install .. --build=missing -s compiler.libcxx=libstdc++11 -s build_type=Release
 
 COPY ./src /app/src
-COPY ./tests /app/tests
 COPY ./data /app/data
-COPY ./static /app/static
 COPY CMakeLists.txt /app/
+RUN mkdir -p /app/static
 
 RUN cd /app/build && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
