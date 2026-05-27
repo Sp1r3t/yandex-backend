@@ -1,0 +1,4 @@
+[Connection: close]
+[Host: cppserver]
+/api/v1/maps
+/api/v1/maps/map1
