@@ -22,30 +22,11 @@ CollectionResult TryCollectPoint(geom::Point2D a, geom::Point2D b, geom::Point2D
     return CollectionResult(sq_distance, proj_ratio);
 }
 
+// В задании на разработку тестов реализовывать следующую функцию не нужно -
+// она будет линковаться извне.
+/*
 std::vector<GatheringEvent> FindGatherEvents(const ItemGathererProvider& provider) {
-    std::vector<GatheringEvent> events;
-
-    for (size_t g = 0; g < provider.GatherersCount(); ++g) {
-        const Gatherer gatherer = provider.GetGatherer(g);
-        // Неподвижный собиратель не подбирает предметы
-        if (gatherer.start_pos.x == gatherer.end_pos.x
-                && gatherer.start_pos.y == gatherer.end_pos.y) {
-            continue;
-        }
-        for (size_t i = 0; i < provider.ItemsCount(); ++i) {
-            const Item item = provider.GetItem(i);
-            const auto result = TryCollectPoint(gatherer.start_pos, gatherer.end_pos, item.position);
-            if (result.IsCollected(gatherer.width + item.width)) {
-                events.push_back({i, g, result.sq_distance, result.proj_ratio});
-            }
-        }
-    }
-
-    std::sort(events.begin(), events.end(), [](const GatheringEvent& lhs, const GatheringEvent& rhs) {
-        return lhs.time < rhs.time;
-    });
-
-    return events;
 }
+*/
 
 }  // namespace collision_detector
