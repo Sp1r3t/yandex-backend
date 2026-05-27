@@ -15,7 +15,7 @@ CollectionResult TryCollectPoint(geom::Point2D a, geom::Point2D b, geom::Point2D
     const double proj_ratio = u_dot_v / v_len2;
     const double sq_distance = u_len2 - (u_dot_v * u_dot_v) / v_len2;
 
-    return CollectionResult(sq_distance, proj_ratio);
+    return CollectionResult{sq_distance, proj_ratio};
 }
 
 std::vector<GatheringEvent> FindGatherEvents(const ItemGathererProvider& provider) {
