@@ -188,12 +188,10 @@ std::vector<Interval> BuildVerticalIntervals(const Map& map, double x) {
 }
 
 const Interval* FindContainingInterval(const std::vector<Interval>& intervals, double value) {
-    for (const auto& interval : intervals) {
-        if (value >= interval.min - kEpsilon && value <= interval.max + kEpsilon) {
-            return &interval;
-        }
-    }
-    return nullptr;
+    const auto it = std::find_if(intervals.begin(), intervals.end(), [value](const Interval& interval) {
+        return value >= interval.min - kEpsilon && value <= interval.max + kEpsilon;
+    });
+    return it != intervals.end() ? &*it : nullptr;
 }
 
 void MoveDogOnMap(const Map& map, Dog& dog, std::int64_t time_delta_ms) {
