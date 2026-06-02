@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS books (
     title  varchar(100) NOT NULL,
     author varchar(100) NOT NULL,
     year   integer NOT NULL,
-    "ISBN" char(13) UNIQUE
+    isbn   char(13) UNIQUE
 );
 )");
     tx.commit();
@@ -36,11 +36,11 @@ static void HandleAddBook(pqxx::connection& conn, const json::object& payload) {
         pqxx::work tx{conn};
         if (isbn) {
             tx.exec_params(
-                R"(INSERT INTO books (title, author, year, "ISBN") VALUES ($1, $2, $3, $4))",
+                R"(INSERT INTO books (title, author, year, isbn) VALUES ($1, $2, $3, $4))",
                 title, author, year, *isbn);
         } else {
             tx.exec_params(
-                R"(INSERT INTO books (title, author, year, "ISBN") VALUES ($1, $2, $3, NULL))",
+                R"(INSERT INTO books (title, author, year, isbn) VALUES ($1, $2, $3, NULL))",
                 title, author, year);
         }
         tx.commit();
@@ -57,9 +57,9 @@ static void HandleAddBook(pqxx::connection& conn, const json::object& payload) {
 static void HandleAllBooks(pqxx::connection& conn) {
     pqxx::read_transaction tx{conn};
     auto rows = tx.exec(R"(
-SELECT id, title, author, year, "ISBN"
+SELECT id, title, author, year, isbn
 FROM books
-ORDER BY year DESC, title ASC, author ASC, "ISBN" ASC
+ORDER BY year DESC, title ASC, author ASC, isbn ASC
 )");
 
     json::array arr;
@@ -69,10 +69,10 @@ ORDER BY year DESC, title ASC, author ASC, "ISBN" ASC
         book["title"]  = json::value(row["title"].c_str());
         book["author"] = json::value(row["author"].c_str());
         book["year"]   = row["year"].as<int>();
-        if (row["ISBN"].is_null()) {
+        if (row["isbn"].is_null()) {
             book["ISBN"] = nullptr;
         } else {
-            book["ISBN"] = json::value(row["ISBN"].c_str());
+            book["ISBN"] = json::value(row["isbn"].c_str());
         }
         arr.push_back(std::move(book));
     }
