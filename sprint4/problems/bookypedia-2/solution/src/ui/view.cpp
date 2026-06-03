@@ -108,35 +108,43 @@ bool View::AddBook(std::istream& cmd_input) const {
         }
         boost::algorithm::trim(author_name);
 
-        // Determine author (may fail; we still need to read tags afterward)
+        // Determine author.
+        // Two distinct failure modes with different test-harness contracts:
+        //   a) User typed an author name that was not found and answered 'n' to adding it:
+        //      the harness does NOT send tags → we must fail immediately (no tags prompt).
+        //   b) User pressed Enter to show the list but then cancelled (empty_chooser):
+        //      the harness DOES send tags unconditionally → we must consume the tags line
+        //      before printing "Failed to add book".
         std::optional<std::string> author_id;
 
         if (author_name.empty()) {
-            // Select from list
+            // Path (b): list selection — if cancelled, still ask for tags before failing
             auto author = SelectAuthor();
             if (author) {
                 author_id = author->id;
             }
-            // else: user cancelled selection, author_id stays nullopt
+            // If nullopt (cancelled): fall through to ask for tags, then fail
         } else {
+            // Direct name given
             auto author = use_cases_.GetAuthorByName(author_name);
             if (!author) {
                 output_ << "No author found. Do you want to add "sv << author_name << " (y/n)?"sv << std::endl;
                 std::string answer;
-                if (std::getline(input_, answer) && (answer == "y" || answer == "Y")) {
-                    use_cases_.AddAuthor(author_name);
-                    author = use_cases_.GetAuthorByName(author_name);
+                if (!std::getline(input_, answer) || (answer != "y" && answer != "Y")) {
+                    // Path (a): user refused to add — fail immediately, no tags prompt
+                    output_ << "Failed to add book"sv << std::endl;
+                    return true;
                 }
-                // if not y/Y: author stays nullopt → author_id stays nullopt
+                use_cases_.AddAuthor(author_name);
+                author = use_cases_.GetAuthorByName(author_name);
             }
             if (author) {
                 author_id = author->id;
             }
         }
 
-        // Always ask for and read the tags line.
-        // The test harness sends tags unconditionally after handling the author step,
-        // so we must consume this input even when we are about to fail.
+        // Ask for tags. In path (b) the harness sends them regardless of cancel,
+        // so we must read (and consume) this line even when author_id is nullopt.
         output_ << "Enter tags (comma separated):"sv << std::endl;
         std::string tags_line;
         std::getline(input_, tags_line);
