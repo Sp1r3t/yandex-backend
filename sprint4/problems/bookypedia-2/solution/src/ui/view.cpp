@@ -295,7 +295,7 @@ bool View::DeleteBook(std::istream& cmd_input) const {
         if (!title.empty()) {
             auto books = use_cases_.GetBooksByTitle(title);
             if (books.empty()) {
-                output_ << "Failed to delete book"sv << std::endl;
+                output_ << "Book not found"sv << std::endl;
                 return true;
             }
             if (books.size() == 1) {
@@ -335,12 +335,18 @@ bool View::EditBook(std::istream& cmd_input) const {
                 selected = books[0];
             } else {
                 selected = SelectBookFromList(books);
-                if (!selected) return true;
+                if (!selected) {
+                    output_ << "Book not found"sv << std::endl;
+                    return true;
+                }
             }
         } else {
             auto books = use_cases_.GetAllBooks();
             selected = SelectBookFromList(books);
-            if (!selected) return true;
+            if (!selected) {
+                output_ << "Book not found"sv << std::endl;
+                return true;
+            }
         }
 
         auto details = use_cases_.GetBookDetails(selected->id);
@@ -453,19 +459,19 @@ std::vector<app::AuthorInfo> View::GetAuthors() const {
 }
 
 std::vector<std::string> View::ParseTags(const std::string& line) {
-    std::vector<std::string> result;
-    std::set<std::string> seen;
+    // Use std::set so duplicates are removed and result is sorted alphabetically.
+    // Tests expect tags stored/displayed in alphabetical order.
+    std::set<std::string> tags_set;
 
     std::istringstream ss{line};
     std::string token;
     while (std::getline(ss, token, ',')) {
         auto normalized = NormalizeTag(token);
-        if (normalized.empty()) continue;
-        if (seen.count(normalized)) continue;
-        seen.insert(normalized);
-        result.push_back(normalized);
+        if (!normalized.empty()) {
+            tags_set.insert(normalized);
+        }
     }
-    return result;
+    return {tags_set.begin(), tags_set.end()};
 }
 
 }  // namespace ui

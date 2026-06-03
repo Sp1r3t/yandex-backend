@@ -31,6 +31,14 @@ void AuthorRepositoryImpl::Update(const domain::AuthorId& id, const std::string&
 
 void AuthorRepositoryImpl::Delete(const domain::AuthorId& id) {
     pqxx::work work{connection_};
+    // Manually cascade: book_tags -> books -> author
+    // (works regardless of whether ON DELETE CASCADE is set in the schema)
+    work.exec_params(
+        R"(DELETE FROM book_tags WHERE book_id IN (SELECT id FROM books WHERE author_id=$1);)",
+        id.ToString());
+    work.exec_params(
+        R"(DELETE FROM books WHERE author_id=$1;)",
+        id.ToString());
     auto result = work.exec_params(
         R"(DELETE FROM authors WHERE id=$1;)"_zv,
         id.ToString());
@@ -87,6 +95,10 @@ void BookRepositoryImpl::Save(const domain::Book& book, const std::vector<std::s
 
 void BookRepositoryImpl::Delete(const domain::BookId& id) {
     pqxx::work work{connection_};
+    // Delete associated tags first (to avoid FK violation if CASCADE is not configured)
+    work.exec_params(
+        R"(DELETE FROM book_tags WHERE book_id=$1;)",
+        id.ToString());
     auto result = work.exec_params(
         R"(DELETE FROM books WHERE id=$1;)"_zv,
         id.ToString());
