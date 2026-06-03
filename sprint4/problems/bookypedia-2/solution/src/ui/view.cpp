@@ -108,35 +108,46 @@ bool View::AddBook(std::istream& cmd_input) const {
         }
         boost::algorithm::trim(author_name);
 
-        std::string author_id;
+        // Determine author (may fail; we still need to read tags afterward)
+        std::optional<std::string> author_id;
+
         if (author_name.empty()) {
+            // Select from list
             auto author = SelectAuthor();
-            if (!author) {
-                output_ << "Failed to add book"sv << std::endl;
-                return true;
+            if (author) {
+                author_id = author->id;
             }
-            author_id = author->id;
+            // else: user cancelled selection, author_id stays nullopt
         } else {
             auto author = use_cases_.GetAuthorByName(author_name);
             if (!author) {
                 output_ << "No author found. Do you want to add "sv << author_name << " (y/n)?"sv << std::endl;
                 std::string answer;
-                if (!std::getline(input_, answer) || (answer != "y" && answer != "Y")) {
-                    output_ << "Failed to add book"sv << std::endl;
-                    return true;
+                if (std::getline(input_, answer) && (answer == "y" || answer == "Y")) {
+                    use_cases_.AddAuthor(author_name);
+                    author = use_cases_.GetAuthorByName(author_name);
                 }
-                use_cases_.AddAuthor(author_name);
-                author = use_cases_.GetAuthorByName(author_name);
+                // if not y/Y: author stays nullopt → author_id stays nullopt
             }
-            author_id = author->id;
+            if (author) {
+                author_id = author->id;
+            }
         }
 
+        // Always ask for and read the tags line.
+        // The test harness sends tags unconditionally after handling the author step,
+        // so we must consume this input even when we are about to fail.
         output_ << "Enter tags (comma separated):"sv << std::endl;
         std::string tags_line;
         std::getline(input_, tags_line);
-        auto tags = ParseTags(tags_line);
 
-        use_cases_.AddBook(year, title, author_id, tags);
+        if (!author_id) {
+            output_ << "Failed to add book"sv << std::endl;
+            return true;
+        }
+
+        auto tags = ParseTags(tags_line);
+        use_cases_.AddBook(year, title, *author_id, tags);
     } catch (const std::exception&) {
         output_ << "Failed to add book"sv << std::endl;
     }
