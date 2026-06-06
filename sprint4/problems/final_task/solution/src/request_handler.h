@@ -26,6 +26,16 @@ namespace http = boost::beast::http;
 namespace json = boost::json;
 using tcp = boost::asio::ip::tcp;
 
+namespace api_endpoints {
+    inline constexpr std::string_view kMaps        = "/api/v1/maps";
+    inline constexpr std::string_view kJoin        = "/api/v1/game/join";
+    inline constexpr std::string_view kPlayers     = "/api/v1/game/players";
+    inline constexpr std::string_view kState       = "/api/v1/game/state";
+    inline constexpr std::string_view kAction      = "/api/v1/game/player/action";
+    inline constexpr std::string_view kTick        = "/api/v1/game/tick";
+    inline constexpr std::string_view kRecords     = "/api/v1/game/records";
+}  // namespace api_endpoints
+
 class RequestHandler {
 public:
     RequestHandler(const model::Game& game,
@@ -124,7 +134,7 @@ public:
             return;
         }
 
-        if (target == "/api/v1/game/join") {
+        if (target == api_endpoints::kJoin) {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -174,7 +184,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/players") {
+        if (target == api_endpoints::kPlayers) {
             handle_authorized_get([&](std::string_view token) {
                 const auto player = game_.FindPlayerByToken(token);
                 if (!player) {
@@ -194,7 +204,7 @@ public:
             return;
         }
 
-        if (target == "/api/v1/game/player/action") {
+        if (target == api_endpoints::kAction) {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -259,7 +269,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/tick") {
+        if (target == api_endpoints::kTick) {
             if (req.method() != http::verb::post) {
                 send_error(http::status::method_not_allowed,
                            "invalidMethod",
@@ -311,7 +321,7 @@ public:
             }
         }
 
-        if (target == "/api/v1/game/state") {
+        if (target == api_endpoints::kState) {
             handle_authorized_get([&](std::string_view token) {
                 const auto game_state = game_.GetStateByToken(token);
                 if (!game_state) {
@@ -373,7 +383,7 @@ public:
             const std::string path = (q == std::string::npos) ? target : target.substr(0, q);
             const std::string query = (q == std::string::npos) ? "" : target.substr(q + 1);
 
-            if (path == "/api/v1/game/records") {
+            if (path == api_endpoints::kRecords) {
                 if (req.method() != http::verb::get && req.method() != http::verb::head) {
                     send_error(http::status::method_not_allowed,
                                "invalidMethod", "Invalid method", "GET, HEAD");
@@ -435,7 +445,7 @@ public:
             return;
         }
 
-        if (target == "/api/v1/maps") {
+        if (target == api_endpoints::kMaps) {
             json::array maps;
             for (const auto& map : game_.GetMaps()) {
                 json::object item;

@@ -94,6 +94,9 @@ private:
     void Close() {
         beast::error_code ec;
         stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+        if (ec) {
+            server_logger::LogNetworkError(ec, "close");
+        }
     }
 
     beast::tcp_stream stream_;

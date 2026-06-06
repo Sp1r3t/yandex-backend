@@ -79,8 +79,11 @@ model::Map ParseMap(const json::object& obj, double default_dog_speed, unsigned 
         for (const auto& lt : arr) {
             int value = 0;
             if (const auto* v = lt.as_object().if_contains("value")) {
-                if (v->is_int64()) value = static_cast<int>(v->as_int64());
-                else if (v->is_uint64()) value = static_cast<int>(v->as_uint64());
+                if (v->is_int64()) {
+                    value = static_cast<int>(v->as_int64());
+                } else if (v->is_uint64()) {
+                    value = static_cast<int>(v->as_uint64());
+                }
             }
             values.push_back(value);
         }

@@ -449,9 +449,12 @@ private:
     std::vector<Map> maps_;
     MapIdToIndex map_id_to_index_;
 
-    int64_t dog_retirement_time_ms_ = 60'000;
+    static constexpr int64_t kDefaultDogRetirementTimeMs = 60'000;
+    static constexpr int64_t kDefaultLootPeriodMs        = 5'000;
 
-    TimeInterval loot_period_{5000};
+    int64_t dog_retirement_time_ms_ = kDefaultDogRetirementTimeMs;
+
+    TimeInterval loot_period_{kDefaultLootPeriodMs};
     double loot_probability_ = 0.5;
     loot_gen::LootGenerator::RandomGenerator loot_random_gen_;
 

@@ -70,12 +70,12 @@ PointD GenerateRandomPositionOnRoad(const Road& road) {
         const double max_x = static_cast<double>(std::max(start.x, end.x));
         std::uniform_real_distribution<double> x_dist(min_x, max_x);
         return {x_dist(GetRandomEngine()), static_cast<double>(start.y)};
-    } else {
-        const double min_y = static_cast<double>(std::min(start.y, end.y));
-        const double max_y = static_cast<double>(std::max(start.y, end.y));
-        std::uniform_real_distribution<double> y_dist(min_y, max_y);
-        return {static_cast<double>(start.x), y_dist(GetRandomEngine())};
     }
+
+    const double min_y = static_cast<double>(std::min(start.y, end.y));
+    const double max_y = static_cast<double>(std::max(start.y, end.y));
+    std::uniform_real_distribution<double> y_dist(min_y, max_y);
+    return {static_cast<double>(start.x), y_dist(GetRandomEngine())};
 }
 
 PointD GenerateRandomPositionOnMap(const Map& map) {
@@ -625,7 +625,9 @@ void Game::Tick(std::int64_t time_delta_ms) const {
                 std::vector<size_t> new_index(players_.size(), SIZE_MAX);
                 size_t new_idx = 0;
                 for (size_t i = 0; i < players_.size(); ++i) {
-                    if (!retiring[i]) new_index[i] = new_idx++;
+                    if (!retiring[i]) {
+                        new_index[i] = new_idx++;
+                    }
                 }
 
                 // Remove retired tokens
@@ -646,7 +648,9 @@ void Game::Tick(std::int64_t time_delta_ms) const {
                 std::vector<Player> remaining;
                 remaining.reserve(players_.size() - retirements.size());
                 for (size_t i = 0; i < players_.size(); ++i) {
-                    if (!retiring[i]) remaining.push_back(std::move(players_[i]));
+                    if (!retiring[i]) {
+                        remaining.push_back(std::move(players_[i]));
+                    }
                 }
                 players_ = std::move(remaining);
             }

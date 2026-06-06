@@ -15,10 +15,7 @@ public:
 
     const json::array* GetMapLootTypes(const std::string& map_id) const {
         auto it = loot_types_.find(map_id);
-        if (it == loot_types_.end()) {
-            return nullptr;
-        }
-        return &it->second;
+        return it == loot_types_.end() ? nullptr : &it->second;
     }
 
 private:
