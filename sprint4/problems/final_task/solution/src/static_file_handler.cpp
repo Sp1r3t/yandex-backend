@@ -106,7 +106,7 @@ http::response<http::string_body> StaticFileHandler::HandleRequest(
     std::string decoded_path;
     try {
         decoded_path = UrlDecode(std::string(req.target()));
-    } catch (...) {
+    } catch (const std::exception&) {
         return make_plain_response(http::status::bad_request, "Bad request");
     }
 

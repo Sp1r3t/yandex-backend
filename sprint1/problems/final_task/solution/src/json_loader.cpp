@@ -67,7 +67,12 @@ model::Game LoadGame(const std::filesystem::path& json_path) {
     std::ostringstream strm;
     strm << input.rdbuf();
 
-    json::value doc = json::parse(strm.str());
+    json::value doc;
+    try {
+        doc = json::parse(strm.str());
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to parse config JSON: "s + e.what());
+    }
     const json::object& root = doc.as_object();
 
     model::Game game;

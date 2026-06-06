@@ -10,6 +10,7 @@
 #include <boost/beast/version.hpp>
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -81,6 +82,9 @@ private:
     void Close() {
         beast::error_code ec;
         stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
+        if (ec) {
+            std::cerr << "socket shutdown: " << ec.message() << '\n';
+        }
     }
 
     beast::tcp_stream stream_;
