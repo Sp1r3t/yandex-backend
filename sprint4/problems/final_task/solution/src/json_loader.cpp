@@ -113,7 +113,12 @@ LoadResult LoadGame(const std::filesystem::path& json_path) {
     std::ostringstream strm;
     strm << input.rdbuf();
 
-    json::value doc = json::parse(strm.str());
+    json::value doc;
+    try {
+        doc = json::parse(strm.str());
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to parse config file: "s + e.what());
+    }
     const json::object& root = doc.as_object();
 
     const double default_dog_speed = root.if_contains("defaultDogSpeed")
@@ -132,16 +137,18 @@ LoadResult LoadGame(const std::filesystem::path& json_path) {
     model::Game game;
 
     if (const auto* ret_time = root.if_contains("dogRetirementTime")) {
+        constexpr int64_t kMsPerSecond = 1000;
         const double secs = ParseDouble(*ret_time);
-        game.SetDogRetirementTime(static_cast<int64_t>(secs * 1000.0));
+        game.SetDogRetirementTime(static_cast<int64_t>(secs * kMsPerSecond));
     }
 
     if (const auto* loot_cfg = root.if_contains("lootGeneratorConfig")) {
+        constexpr int64_t kMsPerSecond = 1000;
         const auto& cfg = loot_cfg->as_object();
         const double period_secs = ParseDouble(cfg.at("period"));
         const double probability = ParseDouble(cfg.at("probability"));
         const auto period_ms = model::Game::TimeInterval(
-            static_cast<long long>(period_secs * 1000.0));
+            static_cast<int64_t>(period_secs * kMsPerSecond));
         game.SetLootGeneratorConfig(period_ms, probability);
     }
 
