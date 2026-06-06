@@ -406,6 +406,9 @@ bool View::EditBook(std::istream& cmd_input) const {
         std::string tags_line;
         std::getline(input_, tags_line);
         auto new_tags = ParseTags(tags_line);
+        if (new_tags.empty()) {
+            new_tags = details->tags;
+        }
 
         use_cases_.EditBook(selected->id, new_title, new_year, new_tags);
     } catch (const std::exception&) {
