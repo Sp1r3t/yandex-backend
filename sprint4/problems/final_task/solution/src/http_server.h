@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logger.h"
 #include "sdk.h"
 
 #include <boost/asio/dispatch.hpp>
@@ -10,7 +11,6 @@
 #include <boost/beast/version.hpp>
 
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -39,6 +39,9 @@ struct SendLambda {
         close = msg.need_eof();
         auto sp = std::make_shared<http::message<isRequest, Body, Fields>>(std::move(msg));
         http::write(stream, *sp, ec);
+        if (ec) {
+            server_logger::LogNetworkError(ec, "write");
+        }
     }
 };
 
@@ -65,11 +68,20 @@ private:
             return Close();
         }
         if (ec) {
+            server_logger::LogNetworkError(ec, "read");
             return;
         }
 
         SendLambda<beast::tcp_stream> lambda{stream_, close_, ec_};
-        request_handler_(std::move(req_), lambda);
+
+        beast::error_code endpoint_ec;
+        const auto remote_endpoint = stream_.socket().remote_endpoint(endpoint_ec);
+        if (endpoint_ec) {
+            server_logger::LogNetworkError(endpoint_ec, "read");
+            return;
+        }
+
+        request_handler_(std::move(req_), remote_endpoint, lambda);
         if (ec_) {
             return;
         }
@@ -83,7 +95,7 @@ private:
         beast::error_code ec;
         stream_.socket().shutdown(tcp::socket::shutdown_send, ec);
         if (ec) {
-            std::cerr << "socket shutdown: " << ec.message() << '\n';
+            server_logger::LogNetworkError(ec, "close");
         }
     }
 
@@ -137,6 +149,8 @@ private:
     void OnAccept(beast::error_code ec, tcp::socket socket) {
         if (!ec) {
             std::make_shared<Session<RequestHandler>>(std::move(socket), request_handler_)->Run();
+        } else {
+            server_logger::LogNetworkError(ec, "accept");
         }
         Accept();
     }

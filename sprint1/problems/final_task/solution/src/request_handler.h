@@ -12,6 +12,12 @@ namespace http_handler {
 namespace http = boost::beast::http;
 namespace json = boost::json;
 
+struct ApiEndpoints {
+    static constexpr std::string_view kApiPrefix  = "/api/";
+    static constexpr std::string_view kMaps       = "/api/v1/maps";
+    static constexpr std::string_view kMapsPrefix = "/api/v1/maps/";
+};
+
 class RequestHandler {
 public:
     explicit RequestHandler(const model::Game& game)
@@ -43,12 +49,12 @@ public:
 
         const std::string target = std::string(req.target());
 
-        if (target.rfind("/api/", 0) != 0) {
+        if (target.rfind(std::string(ApiEndpoints::kApiPrefix), 0) != 0) {
             send(make_error(http::status::bad_request, "badRequest", "Bad request"));
             return;
         }
 
-        if (target == "/api/v1/maps") {
+        if (target == ApiEndpoints::kMaps) {
             json::array maps;
             for (const auto& map : game_.GetMaps()) {
                 json::object item;
@@ -60,9 +66,8 @@ public:
             return;
         }
 
-        constexpr std::string_view maps_prefix = "/api/v1/maps/";
-        if (target.rfind(std::string(maps_prefix), 0) == 0) {
-            const std::string map_id = target.substr(maps_prefix.size());
+        if (target.rfind(std::string(ApiEndpoints::kMapsPrefix), 0) == 0) {
+            const std::string map_id = target.substr(ApiEndpoints::kMapsPrefix.size());
 
             if (map_id.empty() || map_id.find('/') != std::string::npos) {
                 send(make_error(http::status::bad_request, "badRequest", "Bad request"));
