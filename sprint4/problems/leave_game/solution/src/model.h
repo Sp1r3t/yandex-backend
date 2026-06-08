@@ -403,6 +403,7 @@ public:
         Speed2D speed;
         Direction direction;
         std::vector<LostObject> bag;
+        int score = 0;
     };
 
     struct GameState {

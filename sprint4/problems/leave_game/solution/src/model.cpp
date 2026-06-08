@@ -417,7 +417,8 @@ std::optional<Game::GameState> Game::GetStateByToken(std::string_view token) con
                 dog.GetPosition(),
                 dog.GetSpeed(),
                 dog.GetDirection(),
-                dog.GetBag()});
+                dog.GetBag(),
+                dog.GetScore()});
         }
     }
 

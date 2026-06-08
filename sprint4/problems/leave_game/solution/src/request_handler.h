@@ -354,6 +354,7 @@ public:
                     entry["speed"] = std::move(speed);
                     entry["dir"] = std::string(DirectionToString(snap.direction));
                     entry["bag"] = std::move(bag_arr);
+                    entry["score"] = snap.score;
                     players_obj[std::to_string(snap.id)] = std::move(entry);
                 }
 
